@@ -109,7 +109,7 @@ app.UseEndpoints(endpoints =>
     endpoints.MapControllers();
 });
 app.Run();
-void InitDB(WebApplication app) 
+void InitDB(WebApplication app)
 {
     using (var scope = app.Services.CreateScope())
     {
@@ -129,17 +129,22 @@ void InitDB(WebApplication app)
 
 //初始化SK
 void InitSK(WebApplicationBuilder builder)
-{  
+{
+    var azureOpenAIOptions = builder.Configuration.GetSection("AzureOpenAIOption").Get<AzureOpenAIOptions>();
+
+    builder.Services.Configure<AzureOpenAIOptions>(builder.Configuration.GetSection("AzureOpenAIOption"));
+  
     var services = builder.Services;
     var handler = new OpenAIHttpClientHandler();
     var httpClient = new HttpClient(handler);
-    httpClient.Timeout= TimeSpan.FromMinutes(5);
+    httpClient.Timeout = TimeSpan.FromMinutes(5);
     services.AddScoped<Kernel>((serviceProvider) =>
     {
         var kernel = Kernel.CreateBuilder()
-         .AddOpenAIChatCompletion(
-          modelId: OpenAIOption.Model,
-          apiKey: OpenAIOption.Key,
+         .AddAzureOpenAIChatCompletion(
+            azureOpenAIOptions.DeploymentName,
+            azureOpenAIOptions.Endpoint,
+            azureOpenAIOptions.ApiKey,
           httpClient: httpClient)
           .Build();
         RegisterPluginsWithKernel(kernel);
@@ -160,7 +165,7 @@ void InitSK(WebApplicationBuilder builder)
     services.AddScoped<MemoryServerless>(serviceProvider =>
     {
         var memory = new KernelMemoryBuilder()
-           .WithPostgresMemoryDb(postgresConfig)
+           .WithSimpleVectorDb()
            .WithSimpleFileStorage(new SimpleFileStorageConfig { StorageType = FileSystemTypes.Volatile, Directory = "_files" })
            .WithSearchClientConfig(searchClientConfig)
            //如果用本地模型需要设置token小一点。
@@ -170,25 +175,24 @@ void InitSK(WebApplicationBuilder builder)
                MaxTokensPerParagraph = 299,
                OverlappingTokens = 47
            })
-           .WithOpenAITextGeneration(new OpenAIConfig()
+           .WithAzureOpenAITextGeneration(new AzureOpenAIConfig()
            {
-               APIKey = OpenAIOption.Key,
-               TextModel = OpenAIOption.Model
-
+               Deployment = azureOpenAIOptions.DeploymentName,
+               Endpoint = azureOpenAIOptions.Endpoint,
+               APIKey = azureOpenAIOptions.ApiKey,
            }, null, httpClient)
-           .WithOpenAITextEmbeddingGeneration(new OpenAIConfig()
+           .WithAzureOpenAITextEmbeddingGeneration(new AzureOpenAIConfig()
            {
-               APIKey = OpenAIOption.Key,
-               EmbeddingModel = OpenAIOption.EmbeddingModel
-
-           }, null, false, httpClient)
+               Deployment = azureOpenAIOptions.DeploymentName,
+               Endpoint = azureOpenAIOptions.Endpoint,
+               APIKey = azureOpenAIOptions.ApiKey,
+           }, null, null, false, httpClient)
            .Build<MemoryServerless>();
         return memory;
     });
 }
- void RegisterPluginsWithKernel(Kernel kernel)
+void RegisterPluginsWithKernel(Kernel kernel)
 {
     kernel.ImportPluginFromObject(new ConversationSummaryPlugin(), "ConversationSummaryPlugin");
     kernel.ImportPluginFromObject(new TimePlugin(), "TimePlugin");
 }
-

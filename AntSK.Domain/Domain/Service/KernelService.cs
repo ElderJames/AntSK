@@ -4,6 +4,7 @@ using AntSK.Domain.Model;
 using AntSK.Domain.Options;
 using AntSK.Domain.Repositories;
 using AntSK.Domain.Utils;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Plugins.Core;
 using RestSharp;
@@ -18,7 +19,8 @@ namespace AntSK.Domain.Domain.Service
 {
     [ServiceDescription(typeof(IKernelService), ServiceLifetime.Scoped)]
     public class KernelService(
-        IApis_Repositories _apis_Repositories
+        IApis_Repositories _apis_Repositories,
+        IOptions<AzureOpenAIOptions> options
         ) : IKernelService
     {
         /// <summary>
@@ -27,15 +29,16 @@ namespace AntSK.Domain.Domain.Service
         /// <param name="modelId"></param>
         /// <param name="apiKey"></param>
         /// <returns></returns>
-        public Kernel GetKernel(string modelId=null,string apiKey=null)
+        public Kernel GetKernel(string modelId = null, string apiKey = null)
         {
             var handler = new OpenAIHttpClientHandler();
             var httpClient = new HttpClient(handler);
             httpClient.Timeout = TimeSpan.FromMinutes(5);
             var kernel = Kernel.CreateBuilder()
-              .AddOpenAIChatCompletion(
-               modelId: modelId!=null? modelId : OpenAIOption.Model,
-               apiKey: apiKey!=null? apiKey: OpenAIOption.Key,
+              .AddAzureOpenAIChatCompletion(
+               deploymentName: options.Value.DeploymentName,
+               apiKey: options.Value.ApiKey,
+               endpoint: options.Value.Endpoint,
                httpClient: httpClient)
                .Build();
             RegisterPluginsWithKernel(kernel);
