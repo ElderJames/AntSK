@@ -15,7 +15,8 @@ namespace AntSK.Domain.Domain.Service
 {
     [ServiceDescription(typeof(IKMService), ServiceLifetime.Scoped)]
     public class KMService(
-        IOptions<PostgresConfig> postgresOptions
+        IOptions<PostgresConfig> postgresOptions,
+        IOptions<AzureOpenAIOptions> azureOpenAIOptions
         ) : IKMService
     {
         public MemoryServerless GetMemory(SearchClientConfig searchClientConfig=null, TextPartitioningOptions textPartitioningOptions=null) 
@@ -44,23 +45,25 @@ namespace AntSK.Domain.Domain.Service
             }
 
            var memory = new KernelMemoryBuilder()
-          .WithPostgresMemoryDb(postgresOptions.Value)
+          //.WithPostgresMemoryDb(postgresOptions.Value)
+          .WithSimpleVectorDb()
           .WithSimpleFileStorage(new SimpleFileStorageConfig { StorageType = FileSystemTypes.Volatile, Directory = "_files" })
           .WithSearchClientConfig(searchClientConfig)
           //如果用本地模型需要设置token小一点。
           .WithCustomTextPartitioningOptions(textPartitioningOptions)
-          .WithOpenAITextGeneration(new OpenAIConfig()
-          {
-              APIKey = OpenAIOption.Key,
-              TextModel = OpenAIOption.Model
-
-          }, null, httpClient)
-          .WithOpenAITextEmbeddingGeneration(new OpenAIConfig()
-          {
-              APIKey = OpenAIOption.Key,
-              EmbeddingModel = OpenAIOption.EmbeddingModel
-
-          }, null, false, httpClient)
+            .WithAzureOpenAITextGeneration(new AzureOpenAIConfig()
+            {
+                Deployment = azureOpenAIOptions.Value.DeploymentName,
+                Endpoint = azureOpenAIOptions.Value.Endpoint,
+                APIKey = azureOpenAIOptions.Value.ApiKey,
+            }, null, httpClient)
+           .WithAzureOpenAITextEmbeddingGeneration(new AzureOpenAIConfig()
+           {
+               Deployment = azureOpenAIOptions.Value.DeploymentName,
+               Endpoint = azureOpenAIOptions.Value.Endpoint,
+               APIKey = azureOpenAIOptions.Value.ApiKey,
+               Auth= AzureOpenAIConfig.AuthTypes.APIKey,
+           }, null, null, false, httpClient)
           .Build<MemoryServerless>();
             return memory;
         }

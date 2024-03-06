@@ -159,8 +159,8 @@ void InitSK(WebApplicationBuilder builder)
         EmptyAnswer = "知识库未搜索到相关内容"
     };
 
-    builder.Services.Configure<PostgresConfig>(builder.Configuration.GetSection("Postgres"));
-    var postgresConfig = builder.Configuration.GetSection("Postgres").Get<PostgresConfig>()!;
+    //builder.Services.Configure<PostgresConfig>(builder.Configuration.GetSection("Postgres"));
+    //var postgresConfig = builder.Configuration.GetSection("Postgres").Get<PostgresConfig>()!;
 
     services.AddScoped<MemoryServerless>(serviceProvider =>
     {
@@ -180,6 +180,7 @@ void InitSK(WebApplicationBuilder builder)
                Deployment = azureOpenAIOptions.DeploymentName,
                Endpoint = azureOpenAIOptions.Endpoint,
                APIKey = azureOpenAIOptions.ApiKey,
+               Auth = AzureOpenAIConfig.AuthTypes.APIKey
            }, null, httpClient)
            .WithAzureOpenAITextEmbeddingGeneration(new AzureOpenAIConfig()
            {
